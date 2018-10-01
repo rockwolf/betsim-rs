@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 docopt = "1"
+rand = "0.5.5"
