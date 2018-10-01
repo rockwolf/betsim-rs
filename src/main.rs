@@ -9,7 +9,7 @@ const USAGE: &'static str = "
 betsim
 
 Usage:
-  betsim --pool=<start-pool> --unit=<betting-unit> --iterations=<n> [--verbose]
+  betsim --pool=<start-pool> --unit=<betting-unit> --iterations=<n> (--em | --eam) [--verbose]
   betsim (-h | --help)
   betsim --version
 
@@ -17,6 +17,8 @@ Options:
   --pool=<start-pool>       Pool at start of simulation.
   --unit=<betting-unit>     Minimum betting amount to use.
   --iteration=<n>           Number of iterations for the simulation.
+  --em                      Evolutive martingale.
+  --eam                     Evalutive anti-martingale.
   --verbose                 Print iteration details.
   -h --help                 Show usage info.
   --version                 Show version.
@@ -38,19 +40,35 @@ fn main()
     let unit_base: f64 = args.get_str("--unit").parse::<f64>().unwrap();
     let iterations: u32 = args.get_str("--iterations").parse::<u32>().unwrap();
 
-    println!("{}", "Evolutive martingale");
-    println!("{}", "--------------------");
-    let mut result_em: f64 = pool;
+    if args.get_bool("--em")
+    {
+        println!("{}", "Evolutive martingale");
+        println!("{}", "--------------------");
+    }
+    else if args.get_bool("--eam")
+    {
+        println!("{}", "Evolutive anti-martingale");
+        println!("{}", "-------------------------");
+    }
+    let mut result_calc: f64 = pool;
     let mut unit_current: f64 = unit_base;
     let mut i: u32 = 0;
     while i != iterations
     {
-        result_em = calculate_evolutive_martingale(result_em, unit_base, &mut unit_current);
-        if result_em >= 0.0
+        if args.get_bool("--em")
+        {
+            result_calc = calculate_evolutive_martingale(result_calc, unit_base, &mut unit_current);
+        }
+        else if args.get_bool("--eam")
+        {
+            result_calc =
+                calculate_evolutive_anti_martingale(result_calc, unit_base, &mut unit_current);
+        }
+        if result_calc >= 0.0
         {
             if args.get_bool("--verbose")
             {
-                println!("{:.2}", result_em);
+                println!("{:.2}", result_calc);
             }
         }
         else
@@ -61,7 +79,7 @@ fn main()
         i = i + 1;
     }
     println!("Total number of iterations: {}.", i);
-    if result_em > pool
+    if result_calc > pool
     {
         println!("System succeeded!");
     }
@@ -69,60 +87,27 @@ fn main()
     {
         println!("System failed!");
     }
-    
-    println!("{}", "Evolutive anti-martingale");
-    println!("{}", "-------------------------");
-    result_em = pool;
-    unit_current =  unit_base;
-    i = 0;
-    while i != iterations
-    {
-        result_em = calculate_evolutive_anti_martingale(result_em, unit_base, &mut unit_current);
-        if result_em >= 0.0
-        {
-            if args.get_bool("--verbose")
-            {
-                println!("{:.2}", result_em);
-            }
-        }
-        else
-        {
-            println!("WARNING! Evolved to 0.0!");
-            break;
-        }
-        i = i + 1;
-    }
-    println!("Total number of iterations: {}.", i);
-    if result_em > pool
-    {
-        println!("System succeeded!");
-    }
-    else
-    {
-        println!("System failed!");
-    }
-
 }
 
-fn calculate_evolutive_martingale(
-    result_em: f64,
-    unit_base: f64,
-    unit_current: &mut f64,
-) -> f64
+fn calculate_evolutive_martingale(result_calc: f64, unit_base: f64, unit_current: &mut f64) -> f64
 {
     let result: f64;
     if is_win()
     {
-        result = result_em - *unit_current;
-        if *unit_current < unit_base
+        result = result_calc + *unit_current;
+        if *unit_current > unit_base
         {
-            // TODO: unit_base needs can be uneven?
+            // TODO: unit_base can be uneven?
             *unit_current = *unit_current / 2.0;
+        }
+        else
+        {
+            *unit_current = unit_base;
         }
     }
     else
     {
-        result = result_em + *unit_current;
+        result = result_calc - *unit_current;
         // TODO: Make 16.0 aka max_unit a parameter.
         if *unit_current < 16.0
         {
@@ -131,15 +116,15 @@ fn calculate_evolutive_martingale(
         else
         {
             // TODO: experiment with making this half unit_current?
-            *unit_current = *unit_current / 2.0;
-            //*unit_current = unit_base;
+            //*unit_current = *unit_current / 2.0;
+            *unit_current = unit_base;
         }
     }
     result
 }
 
 fn calculate_evolutive_anti_martingale(
-    result_em: f64,
+    result_calc: f64,
     unit_base: f64,
     unit_current: &mut f64,
 ) -> f64
@@ -147,9 +132,9 @@ fn calculate_evolutive_anti_martingale(
     let result: f64;
     if is_win()
     {
-        result = result_em + *unit_current;
+        result = result_calc + *unit_current;
         // TODO: Make 3 a parameter? MAX_ANTI_MG_RUN
-        if *unit_current < 3.0 * unit_base
+        if *unit_current < 2.0 * unit_base
         {
             *unit_current = *unit_current + unit_base;
         }
@@ -161,7 +146,7 @@ fn calculate_evolutive_anti_martingale(
     }
     else
     {
-        result = result_em - *unit_current;
+        result = result_calc - *unit_current;
         // TODO: experiment with resetting to unit_base?
         *unit_current = *unit_current / 2.0;
     }
