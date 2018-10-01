@@ -44,23 +44,36 @@ fn main()
     let mut i: u32 = 0;
     while i != iterations
     {
-        result_em = calculate_evolutive_martingale(result_em, i, unit_base, &mut unit_current);
+        result_em = calculate_evolutive_martingale(result_em, unit_base, &mut unit_current);
         if result_em >= 0.0
         {
             println!("{:.2}", result_em);
         }
+        else
+        {
+            println!("WARNING! Evolved to 0.0!");
+            break;
+        }
         i = i + 1;
+    }
+    println!("Total number of iterations: {}.", i);
+    if result_em > pool
+    {
+        println!("System succeeded!");
+    }
+    else
+    {
+        println!("System failed!");
     }
 }
 
 fn calculate_evolutive_martingale(
     result_em: f64,
-    i: u32,
     unit_base: f64,
     unit_current: &mut f64,
 ) -> f64
 {
-    let mut result: f64 = 0.0;
+    let result: f64;
     if is_win()
     {
         result = result_em - *unit_current;
@@ -81,6 +94,7 @@ fn calculate_evolutive_martingale(
         else
         {
             // TODO: experiment with making this half unit_current?
+            //*unit_current = *unit_current / 2.0;
             *unit_current = unit_base;
         }
     }
